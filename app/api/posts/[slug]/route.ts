@@ -11,7 +11,7 @@ function calculateReadingTime(content: string): number {
 }
 
 type RouteParams = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 export async function GET(_: NextRequest, { params }: RouteParams) {
@@ -21,7 +21,7 @@ export async function GET(_: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const rawSlug = params.slug;
+    const { slug: rawSlug } = await params;
     const slug = decodeURIComponent(rawSlug).trim();
     const normalizedSlug = slug.toLowerCase();
     const db = await getDb();
@@ -66,7 +66,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const rawSlug = params.slug;
+    const { slug: rawSlug } = await params;
     const currentSlug = decodeURIComponent(rawSlug).trim().toLowerCase();
     const body = await request.json();
     const { title, slug, content, excerpt, tags, published } = body;
@@ -135,9 +135,15 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       updateOps.$unset = { excerpt: "" };
     }
 
+    console.log("🔍 About to update post:");
+    console.log("  Current slug:", currentSlug);
+    console.log("  New slug:", nextSlug);
+
     await db
       .collection<Post>("posts")
       .updateOne({ _id: existingPost._id }, updateOps);
+
+    console.log("✅ MongoDB update completed");
 
     return NextResponse.json({
       success: true,
